@@ -8,7 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN dpkg --add-architecture i386 \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
-    ca-certificates curl jq gosu gnupg lsb-release iptables iproute2 \
+    ca-certificates curl jq gosu gnupg lsb-release iptables iproute2 wget \
     libc6:i386 libstdc++6:i386 libgcc-s1:i386 \
     libcurl4:i386 \
     libncurses6:i386 libtinfo6:i386 \
@@ -23,6 +23,14 @@ RUN curl -fsSL https://pkgs.tailscale.com/stable/debian/bookworm.noarmor.gpg \
  && apt-get update \
  && apt-get install -y --no-install-recommends tailscale \
  && rm -rf /var/lib/apt/lists/*
+
+# Install rcon-cli for RCON commands and player monitoring
+RUN RCON_VERSION="0.10.3" \
+ && curl -fsSL "https://github.com/gorcon/rcon-cli/releases/download/v${RCON_VERSION}/rcon-${RCON_VERSION}-amd64_linux.tar.gz" \
+    | tar -xz -C /tmp \
+ && mv /tmp/rcon-${RCON_VERSION}-amd64_linux/rcon /usr/local/bin/rcon \
+ && chmod +x /usr/local/bin/rcon \
+ && rm -rf /tmp/rcon-*
 
 # Create unprivileged steam user
 RUN useradd -m -u 1000 -s /bin/bash steam || true

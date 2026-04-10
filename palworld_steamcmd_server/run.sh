@@ -3,10 +3,10 @@ set -euo pipefail
 
 OPTIONS_FILE="/data/options.json"
 
-# SteamCMD bleibt im Container (ausführbar!)
+# SteamCMD stays in the container (executable!)
 STEAMCMD="/opt/steamcmd/steamcmd.sh"
 
-# Alles Persistente auf den Host (/share)
+# All persistent data on host (/share)
 BASE="/share/palworld"
 SERVER_DIR="${BASE}/server"
 CONFIG_DIR="${BASE}/config"
@@ -15,13 +15,10 @@ INI_FILE="${CONFIG_DIR}/PalWorldSettings.ini"
 GAME_CFG_DIR="${SERVER_DIR}/Pal/Saved/Config/LinuxServer"
 TS_STATE_DIR="/share/palworld/tailscale"
 
-GAME_PORT=8211
-QUERY_PORT=27015
-
-echo "▶ Palworld Add-on startet (SteamCMD exec aus /opt, Daten nach /share)…"
+echo "▶ Palworld Add-on starting (SteamCMD exec from /opt, data in /share)…"
 
 if [[ ! -f "${OPTIONS_FILE}" ]]; then
-  echo "❌ options.json nicht gefunden: ${OPTIONS_FILE}"
+  echo "❌ options.json not found: ${OPTIONS_FILE}"
   exit 1
 fi
 
@@ -30,20 +27,119 @@ echo "▶ DEBUG: options.json contents:"
 cat "${OPTIONS_FILE}"
 echo ""
 
-APP_ID="$(jq -r '.app_id // empty' "${OPTIONS_FILE}")"
-STEAM_USER="$(jq -r '.steam_user // "anonymous"' "${OPTIONS_FILE}")"
-STEAM_PASS="$(jq -r '.steam_pass // ""' "${OPTIONS_FILE}")"
-UPDATE_ON_BOOT="$(jq -r 'if .update_on_boot then "true" else "false" end' "${OPTIONS_FILE}")"
+# ────────────────────────────────────────────
+# Read all options from HA config UI
+# ────────────────────────────────────────────
 
-# Tailscale options – use explicit if/then/else for booleans so JSON true/false map to string "true"/"false"
-TS_ENABLED="$(jq -r 'if .tailscale_enabled then "true" else "false" end' "${OPTIONS_FILE}")"
-TS_AUTHKEY="$(jq -r '.tailscale_authkey // ""' "${OPTIONS_FILE}")"
-TS_HOSTNAME="$(jq -r '.tailscale_hostname // "palworld"' "${OPTIONS_FILE}")"
-TS_ACCEPT_DNS="$(jq -r 'if .tailscale_accept_dns then "true" else "false" end' "${OPTIONS_FILE}")"
-TS_ADVERTISE_EXIT="$(jq -r 'if .tailscale_advertise_exit_node then "true" else "false" end' "${OPTIONS_FILE}")"
-TS_SERVE_ENABLED="$(jq -r 'if .tailscale_serve_enabled then "true" else "false" end' "${OPTIONS_FILE}")"
-TS_SERVE_PORT="$(jq -r '.tailscale_serve_port // 8212' "${OPTIONS_FILE}")"
-TS_FUNNEL="$(jq -r 'if .tailscale_funnel then "true" else "false" end' "${OPTIONS_FILE}")"
+# Helper: read a string/number option with a default
+opt()  { jq -r ".$1 // \"$2\"" "${OPTIONS_FILE}"; }
+# Helper: read a boolean option as "true"/"false"
+optb() { jq -r "if .$1 then \"true\" else \"false\" end" "${OPTIONS_FILE}"; }
+
+# ── SteamCMD ──
+APP_ID="$(opt app_id '')"
+STEAM_USER="$(opt steam_user 'anonymous')"
+STEAM_PASS="$(opt steam_pass '')"
+UPDATE_ON_BOOT="$(optb update_on_boot)"
+
+# ── Server Settings ──
+SERVER_NAME="$(opt server_name 'Palworld Server')"
+SERVER_DESCRIPTION="$(opt server_description '')"
+SERVER_PASSWORD="$(opt server_password '')"
+ADMIN_PASSWORD="$(opt admin_password '')"
+SERVER_PLAYER_MAX_NUM="$(opt server_player_max_num 32)"
+GAME_PORT="$(opt port 8211)"
+QUERY_PORT="$(opt query_port 27015)"
+MULTITHREADING="$(optb multithreading)"
+COMMUNITY_SERVER="$(optb community_server)"
+CROSSPLAY_PLATFORMS="$(opt crossplay_platforms 'Steam,Xbox,PS5,Mac')"
+
+# ── RCON ──
+RCON_ENABLED="$(optb rcon_enabled)"
+RCON_PORT="$(opt rcon_port 25575)"
+
+# ── Gameplay Rates ──
+DAYTIME_SPEEDRATE="$(opt daytime_speedrate 1.0)"
+NIGHTTIME_SPEEDRATE="$(opt nighttime_speedrate 1.0)"
+EXP_RATE="$(opt exp_rate 1.0)"
+PAL_CAPTURE_RATE="$(opt pal_capture_rate 1.0)"
+PAL_SPAWN_NUM_RATE="$(opt pal_spawn_num_rate 1.0)"
+DIFFICULTY="$(opt difficulty 'Normal')"
+
+# ── Player Settings ──
+PLAYER_DAMAGE_RATE_ATTACK="$(opt player_damage_rate_attack 1.0)"
+PLAYER_DAMAGE_RATE_DEFENSE="$(opt player_damage_rate_defense 1.0)"
+PLAYER_STOMACH_DECREASE_RATE="$(opt player_stomach_decrease_rate 1.0)"
+PLAYER_STAMINA_DECREASE_RATE="$(opt player_stamina_decrease_rate 1.0)"
+PLAYER_AUTO_HP_REGEN_RATE="$(opt player_auto_hp_regen_rate 1.0)"
+PLAYER_AUTO_HP_REGEN_RATE_IN_SLEEP="$(opt player_auto_hp_regen_rate_in_sleep 1.0)"
+
+# ── Pal Settings ──
+PAL_DAMAGE_RATE_ATTACK="$(opt pal_damage_rate_attack 1.0)"
+PAL_DAMAGE_RATE_DEFENSE="$(opt pal_damage_rate_defense 1.0)"
+PAL_STOMACH_DECREASE_RATE="$(opt pal_stomach_decrease_rate 1.0)"
+PAL_STAMINA_DECREASE_RATE="$(opt pal_stamina_decrease_rate 1.0)"
+PAL_AUTO_HP_REGEN_RATE="$(opt pal_auto_hp_regen_rate 1.0)"
+PAL_AUTO_HP_REGEN_RATE_IN_SLEEP="$(opt pal_auto_hp_regen_rate_in_sleep 1.0)"
+
+# ── Base / Building ──
+BUILD_OBJECT_DAMAGE_RATE="$(opt build_object_damage_rate 1.0)"
+BUILD_OBJECT_DETERIORATION_DAMAGE_RATE="$(opt build_object_deterioration_damage_rate 1.0)"
+BASE_CAMP_MAX_NUM="$(opt base_camp_max_num 128)"
+BASE_CAMP_WORKER_MAX_NUM="$(opt base_camp_worker_max_num 15)"
+BASE_CAMP_MAX_NUM_IN_GUILD="$(opt base_camp_max_num_in_guild 4)"
+
+# ── Items / Collection ──
+COLLECTION_DROP_RATE="$(opt collection_drop_rate 1.0)"
+COLLECTION_OBJECT_HP_RATE="$(opt collection_object_hp_rate 1.0)"
+COLLECTION_OBJECT_RESPAWN_SPEED_RATE="$(opt collection_object_respawn_speed_rate 1.0)"
+ENEMY_DROP_ITEM_RATE="$(opt enemy_drop_item_rate 1.0)"
+ITEM_WEIGHT_RATE="$(opt item_weight_rate 1.0)"
+
+# ── Hatching / Work ──
+PAL_EGG_DEFAULT_HATCHING_TIME="$(opt pal_egg_default_hatching_time 72.0)"
+WORK_SPEED_RATE="$(opt work_speed_rate 1.0)"
+
+# ── Death / Combat ──
+DEATH_PENALTY="$(opt death_penalty 'All')"
+ENABLE_FRIENDLY_FIRE="$(optb enable_friendly_fire)"
+ENABLE_INVADER_ENEMY="$(optb enable_invader_enemy)"
+ENABLE_DEFENSE_OTHER_GUILD_PLAYER="$(optb enable_defense_other_guild_player)"
+ENABLE_PLAYER_TO_PLAYER_DAMAGE="$(optb enable_player_to_player_damage)"
+
+# ── Multiplayer ──
+IS_MULTIPLAY="$(optb is_multiplay)"
+IS_PVP="$(optb is_pvp)"
+COOP_PLAYER_MAX_NUM="$(opt coop_player_max_num 4)"
+EXIST_PLAYER_AFTER_LOGOUT="$(optb exist_player_after_logout)"
+SUPPLY_DROP_SPAN="$(opt supply_drop_span 180)"
+
+# ── Misc ──
+ENABLE_FAST_TRAVEL="$(optb enable_fast_travel)"
+AUTO_SAVE_SPAN="$(opt auto_save_span 30.0)"
+IS_USE_BACKUP_SAVE_DATA="$(optb is_use_backup_save_data)"
+LOG_FORMAT_TYPE="$(opt log_format_type 'Text')"
+
+# ── Discord Webhooks ──
+DISCORD_WEBHOOK_URL="$(opt discord_webhook_url '')"
+DISCORD_PRE_UPDATE_BOOT_MESSAGE="$(opt discord_pre_update_boot_message 'Server is updating...')"
+DISCORD_POST_UPDATE_BOOT_MESSAGE="$(opt discord_post_update_boot_message 'Server is back online.')"
+DISCORD_PRE_SHUTDOWN_MESSAGE="$(opt discord_pre_shutdown_message 'Server is shutting down...')"
+DISCORD_PLAYER_JOIN_MESSAGE="$(opt discord_player_join_message '🟢 \`player_name\` joined')"
+DISCORD_PLAYER_LEAVE_MESSAGE="$(opt discord_player_leave_message '🔴 \`player_name\` left')"
+DISCORD_PLAYER_JOIN_ENABLED="$(optb discord_player_join_enabled)"
+DISCORD_PLAYER_LEAVE_ENABLED="$(optb discord_player_leave_enabled)"
+DISCORD_SUPPRESS_NOTIFICATIONS="$(optb discord_suppress_notifications)"
+
+# ── Tailscale ──
+TS_ENABLED="$(optb tailscale_enabled)"
+TS_AUTHKEY="$(opt tailscale_authkey '')"
+TS_HOSTNAME="$(opt tailscale_hostname 'palworld')"
+TS_ACCEPT_DNS="$(optb tailscale_accept_dns)"
+TS_ADVERTISE_EXIT="$(optb tailscale_advertise_exit_node)"
+TS_SERVE_ENABLED="$(optb tailscale_serve_enabled)"
+TS_SERVE_PORT="$(opt tailscale_serve_port 8212)"
+TS_FUNNEL="$(optb tailscale_funnel)"
 
 # Auto-enable Tailscale if an auth key is provided but the toggle was left off
 if [[ "${TS_ENABLED}" != "true" && -n "${TS_AUTHKEY}" && "${TS_AUTHKEY}" != "null" ]]; then
@@ -54,7 +150,7 @@ fi
 echo "▶ Tailscale config: enabled=${TS_ENABLED} hostname=${TS_HOSTNAME} serve=${TS_SERVE_ENABLED} funnel=${TS_FUNNEL} authkey_set=$([ -n "${TS_AUTHKEY}" ] && echo 'yes' || echo 'no')"
 
 if [[ -z "${APP_ID}" || "${APP_ID}" == "null" ]]; then
-  echo "❌ app_id fehlt"
+  echo "❌ app_id is missing"
   exit 1
 fi
 
@@ -62,6 +158,27 @@ mkdir -p "${BASE}" "${SERVER_DIR}" "${CONFIG_DIR}" "${STEAM_HOME}" "${GAME_CFG_D
 chown -R steam:steam "${BASE}" || true
 chown -R steam:steam /opt/steamcmd || true
 chmod +x "${STEAMCMD}" || true
+
+# ────────────────────────────────────────────
+# Discord Webhook Helper
+# ────────────────────────────────────────────
+send_discord_message() {
+  local message="$1"
+  if [[ -z "${DISCORD_WEBHOOK_URL}" || "${DISCORD_WEBHOOK_URL}" == "null" ]]; then
+    return 0
+  fi
+  local flags=0
+  if [[ "${DISCORD_SUPPRESS_NOTIFICATIONS}" == "true" ]]; then
+    flags=4096
+  fi
+  local payload
+  payload=$(jq -nc --arg content "${message}" --argjson flags "${flags}" \
+    '{content: $content, flags: $flags}')
+  curl -s -o /dev/null -w "%{http_code}" \
+    -H "Content-Type: application/json" \
+    -d "${payload}" \
+    "${DISCORD_WEBHOOK_URL}" || echo "⚠️ Discord webhook failed"
+}
 
 # ────────────────────────────────────────────
 # Tailscale Setup
@@ -180,7 +297,7 @@ else
 fi
 
 # ────────────────────────────────────────────
-# SteamCMD / Palworld
+# SteamCMD / Palworld Install
 # ────────────────────────────────────────────
 
 steam_update() {
@@ -197,43 +314,36 @@ steam_update() {
 }
 
 if [[ "${UPDATE_ON_BOOT}" == "true" ]]; then
-  echo "▶ SteamCMD: Install/Update Palworld nach ${SERVER_DIR}"
+  echo "▶ SteamCMD: Install/Update Palworld to ${SERVER_DIR}"
+  send_discord_message "${DISCORD_PRE_UPDATE_BOOT_MESSAGE}"
   steam_update
 else
-  echo "ℹ️ update_on_boot=false – überspringe Update"
+  echo "ℹ️ update_on_boot=false – skipping update"
 fi
 
-# Default Config nur einmal erzeugen
-if [[ ! -f "${INI_FILE}" ]]; then
-  echo "▶ Erzeuge Default PalWorldSettings.ini unter /share"
-  cat > "${INI_FILE}" <<'EOF'
+# ────────────────────────────────────────────
+# Generate PalWorldSettings.ini from UI config
+# ────────────────────────────────────────────
+
+# Convert bash "true"/"false" to Palworld INI "True"/"False"
+bool_to_pal() { [[ "$1" == "true" ]] && echo "True" || echo "False"; }
+
+echo "▶ Generating PalWorldSettings.ini from add-on configuration..."
+
+cat > "${INI_FILE}" <<EOFINI
 [/Script/Pal.PalGameWorldSettings]
-OptionSettings=(
-  ServerName="Palworld Server",
-  ServerDescription="",
-  ServerPassword="",
-  AdminPassword="",
-  ServerPlayerMaxNum=32,
-  DayTimeSpeedRate=1.0,
-  NightTimeSpeedRate=1.0,
-  ExpRate=1.0,
-  PalSpawnNumRate=1.0,
-  DeathPenalty="All",
-  bEnableFastTravel=True,
-  bEnableInvaderEnemy=True,
-  bIsUseBackupSaveData=True,
-  LogFormatType="Text"
-)
-EOF
-  chown steam:steam "${INI_FILE}" || true
-fi
+OptionSettings=(Difficulty=${DIFFICULTY},DayTimeSpeedRate=${DAYTIME_SPEEDRATE},NightTimeSpeedRate=${NIGHTTIME_SPEEDRATE},ExpRate=${EXP_RATE},PalCaptureRate=${PAL_CAPTURE_RATE},PalSpawnNumRate=${PAL_SPAWN_NUM_RATE},PalDamageRateAttack=${PAL_DAMAGE_RATE_ATTACK},PalDamageRateDefense=${PAL_DAMAGE_RATE_DEFENSE},PlayerDamageRateAttack=${PLAYER_DAMAGE_RATE_ATTACK},PlayerDamageRateDefense=${PLAYER_DAMAGE_RATE_DEFENSE},PlayerStomachDecreaseRate=${PLAYER_STOMACH_DECREASE_RATE},PlayerStaminaDecreaseRate=${PLAYER_STAMINA_DECREASE_RATE},PlayerAutoHPRegeneRate=${PLAYER_AUTO_HP_REGEN_RATE},PlayerAutoHpRegeneRateInSleep=${PLAYER_AUTO_HP_REGEN_RATE_IN_SLEEP},PalStomachDecreaseRate=${PAL_STOMACH_DECREASE_RATE},PalStaminaDecreaseRate=${PAL_STAMINA_DECREASE_RATE},PalAutoHPRegeneRate=${PAL_AUTO_HP_REGEN_RATE},PalAutoHpRegeneRateInSleep=${PAL_AUTO_HP_REGEN_RATE_IN_SLEEP},BuildObjectDamageRate=${BUILD_OBJECT_DAMAGE_RATE},BuildObjectDeteriorationDamageRate=${BUILD_OBJECT_DETERIORATION_DAMAGE_RATE},CollectionDropRate=${COLLECTION_DROP_RATE},CollectionObjectHpRate=${COLLECTION_OBJECT_HP_RATE},CollectionObjectRespawnSpeedRate=${COLLECTION_OBJECT_RESPAWN_SPEED_RATE},EnemyDropItemRate=${ENEMY_DROP_ITEM_RATE},DeathPenalty=${DEATH_PENALTY},bEnablePlayerToPlayerDamage=$(bool_to_pal "${ENABLE_PLAYER_TO_PLAYER_DAMAGE}"),bEnableFriendlyFire=$(bool_to_pal "${ENABLE_FRIENDLY_FIRE}"),bEnableInvaderEnemy=$(bool_to_pal "${ENABLE_INVADER_ENEMY}"),bActiveUNKO=False,bEnableAimAssistPad=True,bEnableAimAssistKeyboard=False,DropItemMaxNum=3000,DropItemMaxNum_UNKO=100,BaseCampMaxNum=${BASE_CAMP_MAX_NUM},BaseCampWorkerMaxNum=${BASE_CAMP_WORKER_MAX_NUM},DropItemAliveMaxHours=1.000000,bAutoResetGuildNoOnlinePlayers=False,AutoResetGuildTimeNoOnlinePlayers=72.000000,GuildPlayerMaxNum=20,BaseCampMaxNumInGuild=${BASE_CAMP_MAX_NUM_IN_GUILD},PalEggDefaultHatchingTime=${PAL_EGG_DEFAULT_HATCHING_TIME},WorkSpeedRate=${WORK_SPEED_RATE},AutoSaveSpan=${AUTO_SAVE_SPAN},bIsMultiplay=$(bool_to_pal "${IS_MULTIPLAY}"),bIsPvP=$(bool_to_pal "${IS_PVP}"),bCanPickupOtherGuildDeathPenaltyDrop=False,bEnableNonLoginPenalty=True,bEnableFastTravel=$(bool_to_pal "${ENABLE_FAST_TRAVEL}"),bIsStartLocationSelectByMap=True,bExistPlayerAfterLogout=$(bool_to_pal "${EXIST_PLAYER_AFTER_LOGOUT}"),bEnableDefenseOtherGuildPlayer=$(bool_to_pal "${ENABLE_DEFENSE_OTHER_GUILD_PLAYER}"),bInvisibleOtherGuildBaseCampAreaFX=False,CoopPlayerMaxNum=${COOP_PLAYER_MAX_NUM},ServerPlayerMaxNum=${SERVER_PLAYER_MAX_NUM},ServerName="${SERVER_NAME}",ServerDescription="${SERVER_DESCRIPTION}",AdminPassword="${ADMIN_PASSWORD}",ServerPassword="${SERVER_PASSWORD}",PublicPort=${GAME_PORT},PublicIP="",RCONEnabled=$(bool_to_pal "${RCON_ENABLED}"),RCONPort=${RCON_PORT},Region="",bUseAuth=True,BanListURL="https://api.palworldgame.com/api/banlist.txt",RESTAPIEnabled=False,RESTAPIPort=8212,bShowPlayerList=True,AllowConnectPlatform=Steam,bIsUseBackupSaveData=$(bool_to_pal "${IS_USE_BACKUP_SAVE_DATA}"),LogFormatType=${LOG_FORMAT_TYPE},SupplyDropSpan=${SUPPLY_DROP_SPAN},bEnableCommunityServer=$(bool_to_pal "${COMMUNITY_SERVER}"),ItemWeightRate=${ITEM_WEIGHT_RATE},CrossplayPlatforms=(${CROSSPLAY_PLATFORMS}))
+EOFINI
 
-# Config ins Spiel spiegeln
+chown steam:steam "${INI_FILE}" || true
+echo "✅ PalWorldSettings.ini generated"
+
+# Copy config into game directory
 mkdir -p "${GAME_CFG_DIR}"
 cp -f "${INI_FILE}" "${GAME_CFG_DIR}/PalWorldSettings.ini"
 chown -R steam:steam "${SERVER_DIR}/Pal/Saved/Config" || true
 
-# steamclient.so fix (falls vorhanden)
+# steamclient.so fix (if present)
 if [[ -f "${SERVER_DIR}/linux64/steamclient.so" ]]; then
   mkdir -p "${SERVER_DIR}/Pal/Binaries/Linux"
   cp -f "${SERVER_DIR}/linux64/steamclient.so" \
@@ -243,15 +353,117 @@ fi
 SERVER_SH="${SERVER_DIR}/PalServer.sh"
 SERVER_BIN="${SERVER_DIR}/Pal/Binaries/Linux/PalServer-Linux-Shipping"
 
-# Graceful shutdown – stop Tailscale cleanly
+# ────────────────────────────────────────────
+# RCON Player Monitor (Discord join/leave)
+# ────────────────────────────────────────────
+PLAYER_MONITOR_PID=""
+
+start_player_monitor() {
+  if [[ "${RCON_ENABLED}" != "true" ]]; then
+    echo "ℹ️  RCON disabled – player join/leave Discord notifications won't work"
+    return 0
+  fi
+  if [[ -z "${DISCORD_WEBHOOK_URL}" || "${DISCORD_WEBHOOK_URL}" == "null" ]]; then
+    echo "ℹ️  No Discord webhook URL – skipping player monitor"
+    return 0
+  fi
+  if [[ "${DISCORD_PLAYER_JOIN_ENABLED}" != "true" && "${DISCORD_PLAYER_LEAVE_ENABLED}" != "true" ]]; then
+    echo "ℹ️  Player join/leave notifications disabled – skipping player monitor"
+    return 0
+  fi
+
+  echo "▶ Starting RCON player monitor for Discord notifications..."
+
+  (
+    # Wait for server to be ready
+    sleep 30
+
+    local previous_players=""
+    local rcon_cmd="rcon -a 127.0.0.1:${RCON_PORT} -p \"${ADMIN_PASSWORD}\""
+
+    while true; do
+      # Get current player list via RCON
+      local current_players
+      current_players=$(rcon -a "127.0.0.1:${RCON_PORT}" -p "${ADMIN_PASSWORD}" "ShowPlayers" 2>/dev/null || echo "")
+
+      if [[ -n "${current_players}" ]]; then
+        # Extract player names (skip header line, get first CSV field)
+        local current_names
+        current_names=$(echo "${current_players}" | tail -n +2 | cut -d',' -f1 | sort | grep -v '^$' || echo "")
+
+        local previous_names
+        previous_names=$(echo "${previous_players}" | tail -n +2 | cut -d',' -f1 | sort | grep -v '^$' || echo "")
+
+        # Detect joins
+        if [[ "${DISCORD_PLAYER_JOIN_ENABLED}" == "true" ]]; then
+          local joined
+          joined=$(comm -13 <(echo "${previous_names}") <(echo "${current_names}") || echo "")
+          while IFS= read -r player; do
+            if [[ -n "${player}" ]]; then
+              local msg="${DISCORD_PLAYER_JOIN_MESSAGE//player_name/${player}}"
+              echo "▶ Discord: Player joined: ${player}"
+              send_discord_message "${msg}"
+            fi
+          done <<< "${joined}"
+        fi
+
+        # Detect leaves
+        if [[ "${DISCORD_PLAYER_LEAVE_ENABLED}" == "true" ]]; then
+          local left
+          left=$(comm -23 <(echo "${previous_names}") <(echo "${current_names}") || echo "")
+          while IFS= read -r player; do
+            if [[ -n "${player}" ]]; then
+              local msg="${DISCORD_PLAYER_LEAVE_MESSAGE//player_name/${player}}"
+              echo "▶ Discord: Player left: ${player}"
+              send_discord_message "${msg}"
+            fi
+          done <<< "${left}"
+        fi
+
+        previous_players="${current_players}"
+      fi
+
+      sleep 15
+    done
+  ) &
+  PLAYER_MONITOR_PID=$!
+  echo "✅ Player monitor started (PID ${PLAYER_MONITOR_PID})"
+}
+
+# ────────────────────────────────────────────
+# Graceful shutdown
+# ────────────────────────────────────────────
 cleanup() {
   echo "▶ Shutting down..."
+
+  # Send Discord shutdown message
+  send_discord_message "${DISCORD_PRE_SHUTDOWN_MESSAGE}"
+
+  # Stop player monitor
+  if [[ -n "${PLAYER_MONITOR_PID}" ]]; then
+    kill "${PLAYER_MONITOR_PID}" 2>/dev/null || true
+    wait "${PLAYER_MONITOR_PID}" 2>/dev/null || true
+  fi
+
+  # Save via RCON before stopping (if RCON is available)
+  if [[ "${RCON_ENABLED}" == "true" && -n "${ADMIN_PASSWORD}" ]]; then
+    echo "▶ Sending save command via RCON..."
+    rcon -a "127.0.0.1:${RCON_PORT}" -p "${ADMIN_PASSWORD}" "Save" 2>/dev/null || true
+    sleep 5
+    echo "▶ Sending shutdown command via RCON..."
+    rcon -a "127.0.0.1:${RCON_PORT}" -p "${ADMIN_PASSWORD}" "Shutdown 10 Server_is_shutting_down" 2>/dev/null || true
+    sleep 12
+  fi
+
+  # Stop Tailscale
   if [[ -n "${TAILSCALED_PID}" ]]; then
     echo "▶ Tailscale: Logging out..."
     tailscale down 2>/dev/null || true
     kill "${TAILSCALED_PID}" 2>/dev/null || true
     wait "${TAILSCALED_PID}" 2>/dev/null || true
   fi
+
+  # Stop server
   if [[ -n "${SERVER_PID:-}" ]]; then
     kill "${SERVER_PID}" 2>/dev/null || true
     wait "${SERVER_PID}" 2>/dev/null || true
@@ -259,25 +471,53 @@ cleanup() {
 }
 trap cleanup SIGTERM SIGINT
 
-echo "▶ Starte Palworld Server…"
+# ────────────────────────────────────────────
+# Start Palworld Server
+# ────────────────────────────────────────────
+
+# Build server launch arguments
+LAUNCH_ARGS=(
+  "-port=${GAME_PORT}"
+  "-queryport=${QUERY_PORT}"
+  "-useperfthreads"
+  "-NoAsyncLoadingThread"
+  "-UseMultithreadForDS"
+)
+
+# Add community server flag
+if [[ "${COMMUNITY_SERVER}" == "true" ]]; then
+  LAUNCH_ARGS+=("-publiclobby")
+fi
+
+echo "▶ Starting Palworld Server…"
+echo "  Server Name: ${SERVER_NAME}"
+echo "  Game Port: ${GAME_PORT} | Query Port: ${QUERY_PORT} | RCON Port: ${RCON_PORT}"
+echo "  Max Players: ${SERVER_PLAYER_MAX_NUM} | Difficulty: ${DIFFICULTY}"
+echo "  RCON: ${RCON_ENABLED} | Community: ${COMMUNITY_SERVER}"
+echo "  Discord Webhooks: $([ -n "${DISCORD_WEBHOOK_URL}" ] && echo 'enabled' || echo 'disabled')"
+
 if [[ -x "${SERVER_SH}" ]]; then
   gosu steam:steam env HOME="${STEAM_HOME}" "${SERVER_SH}" \
-    -port="${GAME_PORT}" \
-    -queryport="${QUERY_PORT}" \
-    -useperfthreads \
-    -NoAsyncLoadingThread \
-    -UseMultithreadForDS &
+    "${LAUNCH_ARGS[@]}" &
 elif [[ -x "${SERVER_BIN}" ]]; then
   gosu steam:steam env HOME="${STEAM_HOME}" "${SERVER_BIN}" \
-    -port="${GAME_PORT}" \
-    -queryport="${QUERY_PORT}" \
-    -useperfthreads \
-    -NoAsyncLoadingThread \
-    -UseMultithreadForDS &
+    "${LAUNCH_ARGS[@]}" &
 else
-  echo "❌ Palworld Server Binary nicht gefunden in ${SERVER_DIR}"
+  echo "❌ Palworld Server binary not found in ${SERVER_DIR}"
   exit 1
 fi
 
 SERVER_PID=$!
+echo "✅ Palworld Server started (PID ${SERVER_PID})"
+
+# Start player monitor for Discord join/leave (runs in background)
+start_player_monitor
+
+# Send "server online" Discord message after a short delay
+(
+  sleep 20
+  send_discord_message "${DISCORD_POST_UPDATE_BOOT_MESSAGE}"
+) &
+
 wait "${SERVER_PID}"
+

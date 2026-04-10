@@ -1,7 +1,7 @@
 name: Palworld Dedicated Server (SteamCMD)
 slug: palworld_steamcmd_server
-description: Palworld Dedicated Server with optional Tailscale networking
-version: "1.4.2"
+description: Palworld Dedicated Server with optional Tailscale networking and Discord webhooks
+version: "1.5.0"
 
 url: https://github.com/dez011/Home-Assistant-Gameservers-ADDONS-scaletail/tree/main/palworld_steamcmd_server
 
@@ -21,20 +21,114 @@ privileged:
 ports:
   8211/udp: 8211
   27015/udp: 27015
+  25575/tcp: 25575
 
 ports_description:
   8211/udp: "Game Port (UDP)"
   27015/udp: "Query Port (UDP)"
+  25575/tcp: "RCON Port (TCP)"
 
 # 🔴 NUR share – Steam + Server + Config liegen auf dem Host
 map:
   - share:rw
 
 options:
+  # ── SteamCMD ──
   app_id: 2394010
   steam_user: anonymous
   steam_pass: ""
   update_on_boot: true
+
+  # ── Server Settings ──
+  server_name: "Palworld Server"
+  server_description: ""
+  server_password: ""
+  admin_password: ""
+  server_player_max_num: 32
+  port: 8211
+  query_port: 27015
+  multithreading: true
+  community_server: false
+  crossplay_platforms: "Steam,Xbox,PS5,Mac"
+
+  # ── RCON ──
+  rcon_enabled: true
+  rcon_port: 25575
+
+  # ── Gameplay Rates ──
+  daytime_speedrate: 1.0
+  nighttime_speedrate: 1.0
+  exp_rate: 1.0
+  pal_capture_rate: 1.0
+  pal_spawn_num_rate: 1.0
+  difficulty: "Normal"
+
+  # ── Player Settings ──
+  player_damage_rate_attack: 1.0
+  player_damage_rate_defense: 1.0
+  player_stomach_decrease_rate: 1.0
+  player_stamina_decrease_rate: 1.0
+  player_auto_hp_regen_rate: 1.0
+  player_auto_hp_regen_rate_in_sleep: 1.0
+
+  # ── Pal Settings ──
+  pal_damage_rate_attack: 1.0
+  pal_damage_rate_defense: 1.0
+  pal_stomach_decrease_rate: 1.0
+  pal_stamina_decrease_rate: 1.0
+  pal_auto_hp_regen_rate: 1.0
+  pal_auto_hp_regen_rate_in_sleep: 1.0
+
+  # ── Base / Building ──
+  build_object_damage_rate: 1.0
+  build_object_deterioration_damage_rate: 1.0
+  base_camp_max_num: 128
+  base_camp_worker_max_num: 15
+  base_camp_max_num_in_guild: 4
+
+  # ── Items / Collection ──
+  collection_drop_rate: 1.0
+  collection_object_hp_rate: 1.0
+  collection_object_respawn_speed_rate: 1.0
+  enemy_drop_item_rate: 1.0
+  item_weight_rate: 1.0
+
+  # ── Hatching / Work ──
+  pal_egg_default_hatching_time: 72.0
+  work_speed_rate: 1.0
+
+  # ── Death / Combat ──
+  death_penalty: "All"
+  enable_friendly_fire: false
+  enable_invader_enemy: true
+  enable_defense_other_guild_player: false
+  enable_player_to_player_damage: false
+
+  # ── Multiplayer ──
+  is_multiplay: false
+  is_pvp: false
+  coop_player_max_num: 4
+  exist_player_after_logout: false
+  supply_drop_span: 180
+
+  # ── Misc ──
+  enable_fast_travel: true
+  auto_save_span: 30.0
+  is_use_backup_save_data: true
+  log_format_type: "Text"
+
+  # ── Discord Webhooks ──
+  discord_webhook_url: ""
+  discord_pre_update_boot_message: "Server is updating..."
+  discord_post_update_boot_message: "Server is back online."
+  discord_pre_shutdown_message: "Server is shutting down..."
+  discord_player_join_message: "🟢 `player_name` joined"
+  discord_player_leave_message: "🔴 `player_name` left"
+  discord_player_join_enabled: true
+  discord_player_leave_enabled: true
+  discord_suppress_notifications: true
+
+  # ── Tailscale ──
   tailscale_enabled: false
   tailscale_authkey: ""
   tailscale_hostname: "palworld"
@@ -45,10 +139,102 @@ options:
   tailscale_funnel: false
 
 schema:
+  # ── SteamCMD ──
   app_id: int
   steam_user: str
   steam_pass: str?
   update_on_boot: bool
+
+  # ── Server Settings ──
+  server_name: str
+  server_description: str?
+  server_password: str?
+  admin_password: str?
+  server_player_max_num: int
+  port: int
+  query_port: int
+  multithreading: bool
+  community_server: bool
+  crossplay_platforms: str?
+
+  # ── RCON ──
+  rcon_enabled: bool
+  rcon_port: int
+
+  # ── Gameplay Rates ──
+  daytime_speedrate: float
+  nighttime_speedrate: float
+  exp_rate: float
+  pal_capture_rate: float
+  pal_spawn_num_rate: float
+  difficulty: str
+
+  # ── Player Settings ──
+  player_damage_rate_attack: float
+  player_damage_rate_defense: float
+  player_stomach_decrease_rate: float
+  player_stamina_decrease_rate: float
+  player_auto_hp_regen_rate: float
+  player_auto_hp_regen_rate_in_sleep: float
+
+  # ── Pal Settings ──
+  pal_damage_rate_attack: float
+  pal_damage_rate_defense: float
+  pal_stomach_decrease_rate: float
+  pal_stamina_decrease_rate: float
+  pal_auto_hp_regen_rate: float
+  pal_auto_hp_regen_rate_in_sleep: float
+
+  # ── Base / Building ──
+  build_object_damage_rate: float
+  build_object_deterioration_damage_rate: float
+  base_camp_max_num: int
+  base_camp_worker_max_num: int
+  base_camp_max_num_in_guild: int
+
+  # ── Items / Collection ──
+  collection_drop_rate: float
+  collection_object_hp_rate: float
+  collection_object_respawn_speed_rate: float
+  enemy_drop_item_rate: float
+  item_weight_rate: float
+
+  # ── Hatching / Work ──
+  pal_egg_default_hatching_time: float
+  work_speed_rate: float
+
+  # ── Death / Combat ──
+  death_penalty: str
+  enable_friendly_fire: bool
+  enable_invader_enemy: bool
+  enable_defense_other_guild_player: bool
+  enable_player_to_player_damage: bool
+
+  # ── Multiplayer ──
+  is_multiplay: bool
+  is_pvp: bool
+  coop_player_max_num: int
+  exist_player_after_logout: bool
+  supply_drop_span: int
+
+  # ── Misc ──
+  enable_fast_travel: bool
+  auto_save_span: float
+  is_use_backup_save_data: bool
+  log_format_type: str
+
+  # ── Discord Webhooks ──
+  discord_webhook_url: str?
+  discord_pre_update_boot_message: str?
+  discord_post_update_boot_message: str?
+  discord_pre_shutdown_message: str?
+  discord_player_join_message: str?
+  discord_player_leave_message: str?
+  discord_player_join_enabled: bool
+  discord_player_leave_enabled: bool
+  discord_suppress_notifications: bool
+
+  # ── Tailscale ──
   tailscale_enabled: bool
   tailscale_authkey: str?
   tailscale_hostname: str
