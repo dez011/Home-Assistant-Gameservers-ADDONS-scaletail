@@ -1,7 +1,7 @@
 name: Palworld Dedicated Server (SteamCMD)
 slug: palworld_steamcmd_server
 description: Palworld Dedicated Server with optional Tailscale networking and Discord webhooks
-version: "1.5.2"
+version: "1.5.3"
 
 url: https://github.com/dez011/Home-Assistant-Gameservers-ADDONS-scaletail/tree/main/palworld_steamcmd_server
 

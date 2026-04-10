@@ -376,6 +376,11 @@ start_player_monitor() {
     return 0
   fi
   if [[ "${DISCORD_PLAYER_JOIN_ENABLED}" != "true" && "${DISCORD_PLAYER_LEAVE_ENABLED}" != "true" ]]; then
+# Force Palworld to re-read settings from INI on next boot
+# (Palworld caches settings in WorldOption.sav which overrides the INI)
+echo "▶ Removing cached WorldOption.sav so settings from INI are applied..."
+find "${SERVER_DIR}/Pal/Saved/SaveGames" -name "WorldOption.sav" -delete 2>/dev/null || true
+
     echo "ℹ️  Player join/leave notifications disabled – skipping player monitor"
     return 0
   fi
