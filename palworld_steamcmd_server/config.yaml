@@ -40,11 +40,11 @@ options:
   update_on_boot: true
 
   # ── Server Settings ──
-  server_name: "Palworld Server"
-  server_description: ""
+  server_name: "pal-world-server-docker by Thijs van Loef"
+  server_description: "palworld-server-docker by Thijs van Loef"
   server_password: ""
-  admin_password: ""
-  server_player_max_num: 32
+  admin_password: "admin"
+  server_player_max_num: 16
   port: 8211
   query_port: 27015
   multithreading: true
@@ -56,49 +56,49 @@ options:
   rcon_port: 25575
 
   # ── Gameplay Rates ──
-  daytime_speedrate: 1.0
-  nighttime_speedrate: 1.0
-  exp_rate: 1.0
-  pal_capture_rate: 1.0
-  pal_spawn_num_rate: 1.0
-  difficulty: "Normal"
+  daytime_speedrate: 0.9
+  nighttime_speedrate: 1.25
+  exp_rate: 3.0
+  pal_capture_rate: 1.2
+  pal_spawn_num_rate: 1.3
+  difficulty: "Hard"
 
   # ── Player Settings ──
   player_damage_rate_attack: 1.0
-  player_damage_rate_defense: 1.0
-  player_stomach_decrease_rate: 1.0
-  player_stamina_decrease_rate: 1.0
+  player_damage_rate_defense: 0.8
+  player_stomach_decrease_rate: 0.4
+  player_stamina_decrease_rate: 0.4
   player_auto_hp_regen_rate: 1.0
   player_auto_hp_regen_rate_in_sleep: 1.0
 
   # ── Pal Settings ──
   pal_damage_rate_attack: 1.0
   pal_damage_rate_defense: 1.0
-  pal_stomach_decrease_rate: 1.0
-  pal_stamina_decrease_rate: 1.0
+  pal_stomach_decrease_rate: 0.4
+  pal_stamina_decrease_rate: 0.25
   pal_auto_hp_regen_rate: 1.0
   pal_auto_hp_regen_rate_in_sleep: 1.0
 
   # ── Base / Building ──
   build_object_damage_rate: 1.0
-  build_object_deterioration_damage_rate: 1.0
+  build_object_deterioration_damage_rate: 0.5
   base_camp_max_num: 128
-  base_camp_worker_max_num: 15
-  base_camp_max_num_in_guild: 4
+  base_camp_worker_max_num: 30
+  base_camp_max_num_in_guild: 6
 
   # ── Items / Collection ──
-  collection_drop_rate: 1.0
-  collection_object_hp_rate: 1.0
+  collection_drop_rate: 2.5
+  collection_object_hp_rate: 0.5
   collection_object_respawn_speed_rate: 1.0
-  enemy_drop_item_rate: 1.0
-  item_weight_rate: 1.0
+  enemy_drop_item_rate: 3.0
+  item_weight_rate: 0.25
 
   # ── Hatching / Work ──
-  pal_egg_default_hatching_time: 72.0
-  work_speed_rate: 1.0
+  pal_egg_default_hatching_time: 0.2
+  work_speed_rate: 2.0
 
   # ── Death / Combat ──
-  death_penalty: "All"
+  death_penalty: "None"
   enable_friendly_fire: false
   enable_invader_enemy: true
   enable_defense_other_guild_player: false
@@ -109,7 +109,7 @@ options:
   is_pvp: false
   coop_player_max_num: 4
   exist_player_after_logout: false
-  supply_drop_span: 180
+  supply_drop_span: 80
 
   # ── Misc ──
   enable_fast_travel: true
