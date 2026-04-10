@@ -31,8 +31,16 @@ echo ""
 # Read all options from HA config UI
 # ────────────────────────────────────────────
 
-# Helper: read a string/number option with a default
-opt()  { jq -r ".$1 // \"$2\"" "${OPTIONS_FILE}"; }
+# Helper: read a string/number option with a default (default handled in bash, NOT jq)
+opt() {
+  local val
+  val=$(jq -r ".$1 // empty" "${OPTIONS_FILE}")
+  if [[ -z "${val}" ]]; then
+    echo "$2"
+  else
+    echo "${val}"
+  fi
+}
 # Helper: read a boolean option as "true"/"false"
 optb() { jq -r "if .$1 then \"true\" else \"false\" end" "${OPTIONS_FILE}"; }
 
@@ -125,8 +133,8 @@ DISCORD_WEBHOOK_URL="$(opt discord_webhook_url '')"
 DISCORD_PRE_UPDATE_BOOT_MESSAGE="$(opt discord_pre_update_boot_message 'Server is updating...')"
 DISCORD_POST_UPDATE_BOOT_MESSAGE="$(opt discord_post_update_boot_message 'Server is back online.')"
 DISCORD_PRE_SHUTDOWN_MESSAGE="$(opt discord_pre_shutdown_message 'Server is shutting down...')"
-DISCORD_PLAYER_JOIN_MESSAGE="$(opt discord_player_join_message '🟢 \`player_name\` joined')"
-DISCORD_PLAYER_LEAVE_MESSAGE="$(opt discord_player_leave_message '🔴 \`player_name\` left')"
+DISCORD_PLAYER_JOIN_MESSAGE="$(opt discord_player_join_message 'player_name joined')"
+DISCORD_PLAYER_LEAVE_MESSAGE="$(opt discord_player_leave_message 'player_name left')"
 DISCORD_PLAYER_JOIN_ENABLED="$(optb discord_player_join_enabled)"
 DISCORD_PLAYER_LEAVE_ENABLED="$(optb discord_player_leave_enabled)"
 DISCORD_SUPPRESS_NOTIFICATIONS="$(optb discord_suppress_notifications)"
@@ -520,4 +528,3 @@ start_player_monitor
 ) &
 
 wait "${SERVER_PID}"
-
