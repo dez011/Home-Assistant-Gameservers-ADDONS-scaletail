@@ -45,6 +45,12 @@ TS_SERVE_ENABLED="$(jq -r 'if .tailscale_serve_enabled then "true" else "false" 
 TS_SERVE_PORT="$(jq -r '.tailscale_serve_port // 8212' "${OPTIONS_FILE}")"
 TS_FUNNEL="$(jq -r 'if .tailscale_funnel then "true" else "false" end' "${OPTIONS_FILE}")"
 
+# Auto-enable Tailscale if an auth key is provided but the toggle was left off
+if [[ "${TS_ENABLED}" != "true" && -n "${TS_AUTHKEY}" && "${TS_AUTHKEY}" != "null" ]]; then
+  echo "▶ Tailscale: Auth key detected but tailscale_enabled is false — auto-enabling Tailscale."
+  TS_ENABLED="true"
+fi
+
 echo "▶ Tailscale config: enabled=${TS_ENABLED} hostname=${TS_HOSTNAME} serve=${TS_SERVE_ENABLED} funnel=${TS_FUNNEL} authkey_set=$([ -n "${TS_AUTHKEY}" ] && echo 'yes' || echo 'no')"
 
 if [[ -z "${APP_ID}" || "${APP_ID}" == "null" ]]; then
@@ -83,7 +89,7 @@ start_tailscale() {
     --state="${TS_STATE_DIR}/tailscaled.state" \
     --socket=/var/run/tailscale/tailscaled.sock \
     --tun=userspace-networking \
-    &>/dev/null &
+    2>&1 &
   TAILSCALED_PID=$!
   echo "▶ Tailscale: tailscaled started with PID ${TAILSCALED_PID}"
 
@@ -101,6 +107,7 @@ start_tailscale() {
 
   if [[ ! -S /var/run/tailscale/tailscaled.sock ]]; then
     echo "❌ Tailscale: tailscaled did not start in time (waited ${waited}s)"
+    echo "❌ Tailscale: Check if NET_ADMIN capability is available"
     return 1
   fi
 
@@ -118,7 +125,8 @@ start_tailscale() {
   fi
 
   echo "▶ Tailscale: Connecting to tailnet as '${TS_HOSTNAME}'..."
-  if ! tailscale up "${ts_args[@]}"; then
+  echo "▶ Tailscale: Running: tailscale up ${ts_args[*]//${TS_AUTHKEY}/tskey-***REDACTED***}"
+  if ! tailscale up "${ts_args[@]}" 2>&1; then
     echo "❌ Tailscale: 'tailscale up' failed"
     return 1
   fi
@@ -128,6 +136,11 @@ start_tailscale() {
   ts_ip="$(tailscale ip -4 2>/dev/null || echo 'unknown')"
   echo "✅ Tailscale: Connected! Tailscale IP: ${ts_ip}"
   echo "   Players on your Tailnet can connect to: ${ts_ip}:${GAME_PORT}"
+  echo "   (or ${TS_HOSTNAME}:${GAME_PORT} if using MagicDNS)"
+
+  # Show tailscale status for debugging
+  echo "▶ Tailscale status:"
+  tailscale status 2>&1 || true
 
   # ── Tailscale Serve Configuration ──
   if [[ "${TS_SERVE_ENABLED}" == "true" ]]; then
@@ -139,15 +152,15 @@ start_tailscale() {
     # Use tailscale serve/funnel CLI to proxy HTTPS -> local port
     if [[ "${TS_FUNNEL}" == "true" ]]; then
       echo "▶ Tailscale Funnel: Exposing port ${TS_SERVE_PORT} to the internet..."
-      tailscale funnel --bg --https 443 "http://localhost:${TS_SERVE_PORT}" || {
+      tailscale funnel --bg --https 443 "http://localhost:${TS_SERVE_PORT}" 2>&1 || {
         echo "⚠️  Tailscale Funnel --bg failed, trying without --bg..."
-        tailscale funnel --https 443 --set-path / "http://localhost:${TS_SERVE_PORT}" &
+        tailscale funnel --https 443 --set-path / "http://localhost:${TS_SERVE_PORT}" 2>&1 &
       }
     else
       echo "▶ Tailscale Serve: Exposing port ${TS_SERVE_PORT} on your Tailnet..."
-      tailscale serve --bg --https 443 "http://localhost:${TS_SERVE_PORT}" || {
+      tailscale serve --bg --https 443 "http://localhost:${TS_SERVE_PORT}" 2>&1 || {
         echo "⚠️  Tailscale Serve --bg failed, trying without --bg..."
-        tailscale serve --https 443 --set-path / "http://localhost:${TS_SERVE_PORT}" &
+        tailscale serve --https 443 --set-path / "http://localhost:${TS_SERVE_PORT}" 2>&1 &
       }
     fi
 
