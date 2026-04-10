@@ -4,15 +4,24 @@ FROM ghcr.io/hassio-addons/debian-base:stable
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 32-bit libs for SteamCMD + tools
+# 32-bit libs for SteamCMD + tools + Tailscale dependencies
 RUN dpkg --add-architecture i386 \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
-    ca-certificates curl jq gosu \
+    ca-certificates curl jq gosu gnupg lsb-release iptables iproute2 \
     libc6:i386 libstdc++6:i386 libgcc-s1:i386 \
     libcurl4:i386 \
     libncurses6:i386 libtinfo6:i386 \
  && update-ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+
+# Install Tailscale
+RUN curl -fsSL https://pkgs.tailscale.com/stable/debian/bookworm.noarmor.gpg \
+    -o /usr/share/keyrings/tailscale-archive-keyring.gpg \
+ && curl -fsSL https://pkgs.tailscale.com/stable/debian/bookworm.tailscale-keyring.list \
+    -o /etc/apt/sources.list.d/tailscale.list \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends tailscale \
  && rm -rf /var/lib/apt/lists/*
 
 # Create unprivileged steam user
@@ -24,6 +33,9 @@ RUN mkdir -p /opt/steamcmd \
     | tar -xz -C /opt/steamcmd \
  && chmod +x /opt/steamcmd/steamcmd.sh \
  && chown -R steam:steam /opt/steamcmd
+
+# Create Tailscale state directory
+RUN mkdir -p /var/lib/tailscale
 
 WORKDIR /data
 

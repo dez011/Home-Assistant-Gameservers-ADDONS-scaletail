@@ -1,9 +1,9 @@
 name: Palworld Dedicated Server (SteamCMD)
 slug: palworld_steamcmd_server
-description: Palworld Dedicated Server
-version: "1.3.1"
+description: Palworld Dedicated Server with optional Tailscale networking
+version: "1.4.0"
 
-url: https://github.com/cyclemat/Home-Assistant-Gameservers-ADDONS/tree/main/palworld_steamcmd_server
+url: https://github.com/dez011/Home-Assistant-Gameservers-ADDONS-scaletail/tree/main/palworld_steamcmd_server
 
 arch:
   - amd64
@@ -12,6 +12,11 @@ startup: application
 boot: auto
 init: false
 host_network: false
+
+# Tailscale needs /dev/net/tun and NET_ADMIN
+privileged:
+  - NET_ADMIN
+  - SYS_MODULE
 
 ports:
   8211/udp: 8211
@@ -30,9 +35,25 @@ options:
   steam_user: anonymous
   steam_pass: ""
   update_on_boot: true
+  tailscale_enabled: false
+  tailscale_authkey: ""
+  tailscale_hostname: "palworld"
+  tailscale_accept_dns: false
+  tailscale_advertise_exit_node: false
+  tailscale_serve_enabled: false
+  tailscale_serve_port: 8212
+  tailscale_funnel: false
 
 schema:
   app_id: int
   steam_user: str
   steam_pass: str?
   update_on_boot: bool
+  tailscale_enabled: bool
+  tailscale_authkey: str?
+  tailscale_hostname: str
+  tailscale_accept_dns: bool
+  tailscale_advertise_exit_node: bool
+  tailscale_serve_enabled: bool
+  tailscale_serve_port: int
+  tailscale_funnel: bool
