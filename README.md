@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/cyclemat/Home-Assistant-Gameservers-ADDONS/main/assets/banner.png" alt="Home Assistant Game Servers Add-ons" width="80%">
+  <img src="https://raw.githubusercontent.com/dez011/Home-Assistant-Gameservers-ADDONS-scaletail/main/assets/banner.png" alt="Home Assistant Game Servers Add-ons" width="80%">
 </p>
 
 <h1 align="center">🎮 Home Assistant Game Servers Add-ons</h1>
@@ -66,7 +66,7 @@ Examples:
 You can add this repository directly to your **Home Assistant Add-on Store**:
 
 ### 👉 Add Repository
-https://github.com/cyclemat/Home-Assistant-Gameservers-ADDONS
+https://github.com/dez011/Home-Assistant-Gameservers-ADDONS-scaletail
 
 
 In Home Assistant:
@@ -110,7 +110,7 @@ Just open-source and passion ❤️
 ---
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/cyclemat/Home-Assistant-Gameservers-ADDONS/main/assets/logo.png" width="200">
+  <img src="https://raw.githubusercontent.com/dez011/Home-Assistant-Gameservers-ADDONS-scaletail/main/assets/logo.png" width="200">
 </p>
 
 <p align="center">

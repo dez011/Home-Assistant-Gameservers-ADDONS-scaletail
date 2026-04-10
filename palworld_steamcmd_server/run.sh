@@ -25,20 +25,27 @@ if [[ ! -f "${OPTIONS_FILE}" ]]; then
   exit 1
 fi
 
+# Debug: show raw options.json content for troubleshooting
+echo "▶ DEBUG: options.json contents:"
+cat "${OPTIONS_FILE}"
+echo ""
+
 APP_ID="$(jq -r '.app_id // empty' "${OPTIONS_FILE}")"
 STEAM_USER="$(jq -r '.steam_user // "anonymous"' "${OPTIONS_FILE}")"
 STEAM_PASS="$(jq -r '.steam_pass // ""' "${OPTIONS_FILE}")"
-UPDATE_ON_BOOT="$(jq -r '.update_on_boot // true' "${OPTIONS_FILE}")"
+UPDATE_ON_BOOT="$(jq -r 'if .update_on_boot then "true" else "false" end' "${OPTIONS_FILE}")"
 
-# Tailscale options
-TS_ENABLED="$(jq -r '.tailscale_enabled // false' "${OPTIONS_FILE}")"
+# Tailscale options – use explicit if/then/else for booleans so JSON true/false map to string "true"/"false"
+TS_ENABLED="$(jq -r 'if .tailscale_enabled then "true" else "false" end' "${OPTIONS_FILE}")"
 TS_AUTHKEY="$(jq -r '.tailscale_authkey // ""' "${OPTIONS_FILE}")"
 TS_HOSTNAME="$(jq -r '.tailscale_hostname // "palworld"' "${OPTIONS_FILE}")"
-TS_ACCEPT_DNS="$(jq -r '.tailscale_accept_dns // false' "${OPTIONS_FILE}")"
-TS_ADVERTISE_EXIT="$(jq -r '.tailscale_advertise_exit_node // false' "${OPTIONS_FILE}")"
-TS_SERVE_ENABLED="$(jq -r '.tailscale_serve_enabled // false' "${OPTIONS_FILE}")"
+TS_ACCEPT_DNS="$(jq -r 'if .tailscale_accept_dns then "true" else "false" end' "${OPTIONS_FILE}")"
+TS_ADVERTISE_EXIT="$(jq -r 'if .tailscale_advertise_exit_node then "true" else "false" end' "${OPTIONS_FILE}")"
+TS_SERVE_ENABLED="$(jq -r 'if .tailscale_serve_enabled then "true" else "false" end' "${OPTIONS_FILE}")"
 TS_SERVE_PORT="$(jq -r '.tailscale_serve_port // 8212' "${OPTIONS_FILE}")"
-TS_FUNNEL="$(jq -r '.tailscale_funnel // false' "${OPTIONS_FILE}")"
+TS_FUNNEL="$(jq -r 'if .tailscale_funnel then "true" else "false" end' "${OPTIONS_FILE}")"
+
+echo "▶ Tailscale config: enabled=${TS_ENABLED} hostname=${TS_HOSTNAME} serve=${TS_SERVE_ENABLED} funnel=${TS_FUNNEL} authkey_set=$([ -n "${TS_AUTHKEY}" ] && echo 'yes' || echo 'no')"
 
 if [[ -z "${APP_ID}" || "${APP_ID}" == "null" ]]; then
   echo "❌ app_id fehlt"
@@ -53,18 +60,22 @@ chmod +x "${STEAMCMD}" || true
 # ────────────────────────────────────────────
 # Tailscale Setup
 # ────────────────────────────────────────────
+TAILSCALED_PID=""
+
 start_tailscale() {
   echo "▶ Tailscale: Setting up..."
 
   # Ensure TUN device exists
   mkdir -p /dev/net
   if [[ ! -c /dev/net/tun ]]; then
+    echo "▶ Tailscale: Creating /dev/net/tun..."
     mknod /dev/net/tun c 10 200
     chmod 600 /dev/net/tun
   fi
 
   # Persistent state
   mkdir -p "${TS_STATE_DIR}"
+  mkdir -p /var/run/tailscale
 
   # Start tailscaled daemon in background (userspace networking as fallback)
   echo "▶ Tailscale: Starting tailscaled..."
@@ -72,20 +83,24 @@ start_tailscale() {
     --state="${TS_STATE_DIR}/tailscaled.state" \
     --socket=/var/run/tailscale/tailscaled.sock \
     --tun=userspace-networking \
-    &
+    &>/dev/null &
   TAILSCALED_PID=$!
+  echo "▶ Tailscale: tailscaled started with PID ${TAILSCALED_PID}"
 
   # Wait for the socket to become available
-  echo "▶ Tailscale: Waiting for daemon..."
+  echo "▶ Tailscale: Waiting for daemon socket..."
+  local waited=0
   for i in $(seq 1 30); do
     if [[ -S /var/run/tailscale/tailscaled.sock ]]; then
+      echo "▶ Tailscale: Socket ready after ${waited}s"
       break
     fi
     sleep 1
+    waited=$((waited + 1))
   done
 
   if [[ ! -S /var/run/tailscale/tailscaled.sock ]]; then
-    echo "❌ Tailscale: tailscaled did not start in time"
+    echo "❌ Tailscale: tailscaled did not start in time (waited ${waited}s)"
     return 1
   fi
 
@@ -103,59 +118,37 @@ start_tailscale() {
   fi
 
   echo "▶ Tailscale: Connecting to tailnet as '${TS_HOSTNAME}'..."
-  tailscale up "${ts_args[@]}"
+  if ! tailscale up "${ts_args[@]}"; then
+    echo "❌ Tailscale: 'tailscale up' failed"
+    return 1
+  fi
 
   # Show assigned IP
-  TS_IP="$(tailscale ip -4 2>/dev/null || echo 'unknown')"
-  echo "✅ Tailscale: Connected! Tailscale IP: ${TS_IP}"
-  echo "   Players on your Tailnet can connect to: ${TS_IP}:${GAME_PORT}"
+  local ts_ip
+  ts_ip="$(tailscale ip -4 2>/dev/null || echo 'unknown')"
+  echo "✅ Tailscale: Connected! Tailscale IP: ${ts_ip}"
+  echo "   Players on your Tailnet can connect to: ${ts_ip}:${GAME_PORT}"
 
   # ── Tailscale Serve Configuration ──
   if [[ "${TS_SERVE_ENABLED}" == "true" ]]; then
     echo "▶ Tailscale Serve: Configuring proxy on port ${TS_SERVE_PORT}..."
 
-    # Write serve config JSON
-    # This proxies HTTPS:443 -> localhost:SERVE_PORT (e.g. RCON web panel)
-    local serve_config
-    serve_config=$(cat <<EOFJSON
-{
-  "TCP": {
-    "443": {
-      "HTTPS": true
-    }
-  },
-  "Web": {
-    "\${TS_CERT_DOMAIN}:443": {
-      "Handlers": {
-        "/": {
-          "Proxy": "http://127.0.0.1:${TS_SERVE_PORT}"
-        }
-      }
-    }
-  },
-  "AllowFunnel": {
-    "\${TS_CERT_DOMAIN}:443": ${TS_FUNNEL}
-  }
-}
-EOFJSON
-)
-    mkdir -p "${TS_STATE_DIR}"
-    echo "${serve_config}" > "${TS_STATE_DIR}/serve.json"
+    # Reset any existing serve config
+    tailscale serve reset 2>/dev/null || true
 
-    # Apply serve config
-    if tailscale serve status &>/dev/null; then
-      tailscale serve reset 2>/dev/null || true
-    fi
-
-    # Use tailscale serve to proxy HTTPS -> local port
+    # Use tailscale serve/funnel CLI to proxy HTTPS -> local port
     if [[ "${TS_FUNNEL}" == "true" ]]; then
       echo "▶ Tailscale Funnel: Exposing port ${TS_SERVE_PORT} to the internet..."
-      tailscale funnel --bg "http://localhost:${TS_SERVE_PORT}" 2>/dev/null || \
-        tailscale funnel "http://localhost:${TS_SERVE_PORT}" &
+      tailscale funnel --bg --https 443 "http://localhost:${TS_SERVE_PORT}" || {
+        echo "⚠️  Tailscale Funnel --bg failed, trying without --bg..."
+        tailscale funnel --https 443 --set-path / "http://localhost:${TS_SERVE_PORT}" &
+      }
     else
       echo "▶ Tailscale Serve: Exposing port ${TS_SERVE_PORT} on your Tailnet..."
-      tailscale serve --bg "http://localhost:${TS_SERVE_PORT}" 2>/dev/null || \
-        tailscale serve "http://localhost:${TS_SERVE_PORT}" &
+      tailscale serve --bg --https 443 "http://localhost:${TS_SERVE_PORT}" || {
+        echo "⚠️  Tailscale Serve --bg failed, trying without --bg..."
+        tailscale serve --https 443 --set-path / "http://localhost:${TS_SERVE_PORT}" &
+      }
     fi
 
     echo "✅ Tailscale Serve: HTTPS proxy active for port ${TS_SERVE_PORT}"
@@ -169,6 +162,8 @@ if [[ "${TS_ENABLED}" == "true" ]]; then
   else
     start_tailscale || echo "⚠️  Tailscale setup failed, continuing without it..."
   fi
+else
+  echo "ℹ️  Tailscale is disabled. Set tailscale_enabled=true in the add-on config to use it."
 fi
 
 # ────────────────────────────────────────────
@@ -238,10 +233,15 @@ SERVER_BIN="${SERVER_DIR}/Pal/Binaries/Linux/PalServer-Linux-Shipping"
 # Graceful shutdown – stop Tailscale cleanly
 cleanup() {
   echo "▶ Shutting down..."
-  if [[ "${TS_ENABLED}" == "true" ]] && command -v tailscale &>/dev/null; then
+  if [[ -n "${TAILSCALED_PID}" ]]; then
     echo "▶ Tailscale: Logging out..."
     tailscale down 2>/dev/null || true
-    kill "${TAILSCALED_PID:-}" 2>/dev/null || true
+    kill "${TAILSCALED_PID}" 2>/dev/null || true
+    wait "${TAILSCALED_PID}" 2>/dev/null || true
+  fi
+  if [[ -n "${SERVER_PID:-}" ]]; then
+    kill "${SERVER_PID}" 2>/dev/null || true
+    wait "${SERVER_PID}" 2>/dev/null || true
   fi
 }
 trap cleanup SIGTERM SIGINT
