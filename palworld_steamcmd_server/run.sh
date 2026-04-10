@@ -22,9 +22,39 @@ if [[ ! -f "${OPTIONS_FILE}" ]]; then
   exit 1
 fi
 
-# Debug: show raw options.json content for troubleshooting
-echo "▶ DEBUG: options.json contents:"
-cat "${OPTIONS_FILE}"
+# Debug: show options.json with secrets redacted
+echo "▶ DEBUG: options.json contents (secrets redacted):"
+jq '{
+  app_id, steam_user, update_on_boot,
+  server_name, server_description, server_player_max_num, port, query_port,
+  multithreading, community_server, crossplay_platforms,
+  rcon_enabled, rcon_port,
+  daytime_speedrate, nighttime_speedrate, exp_rate, pal_capture_rate,
+  pal_spawn_num_rate, difficulty,
+  player_damage_rate_attack, player_damage_rate_defense,
+  player_stomach_decrease_rate, player_stamina_decrease_rate,
+  player_auto_hp_regen_rate, player_auto_hp_regen_rate_in_sleep,
+  pal_damage_rate_attack, pal_damage_rate_defense,
+  pal_stomach_decrease_rate, pal_stamina_decrease_rate,
+  pal_auto_hp_regen_rate, pal_auto_hp_regen_rate_in_sleep,
+  build_object_damage_rate, build_object_deterioration_damage_rate,
+  base_camp_max_num, base_camp_worker_max_num, base_camp_max_num_in_guild,
+  collection_drop_rate, collection_object_hp_rate, collection_object_respawn_speed_rate,
+  enemy_drop_item_rate, item_weight_rate,
+  pal_egg_default_hatching_time, work_speed_rate,
+  death_penalty, enable_friendly_fire, enable_invader_enemy,
+  enable_defense_other_guild_player, enable_player_to_player_damage,
+  is_multiplay, is_pvp, coop_player_max_num, exist_player_after_logout, supply_drop_span,
+  enable_fast_travel, auto_save_span, is_use_backup_save_data, log_format_type,
+  discord_player_join_enabled, discord_player_leave_enabled, discord_suppress_notifications,
+  tailscale_enabled, tailscale_hostname, tailscale_accept_dns,
+  tailscale_advertise_exit_node, tailscale_serve_enabled, tailscale_serve_port, tailscale_funnel,
+  discord_webhook_url: (if .discord_webhook_url == "" then "(empty)" else "***REDACTED***" end),
+  tailscale_authkey: (if .tailscale_authkey == "" then "(empty)" else "***REDACTED***" end),
+  steam_pass: (if .steam_pass == "" then "(empty)" else "***REDACTED***" end),
+  server_password: (if .server_password == "" then "(empty)" else "***REDACTED***" end),
+  admin_password: (if .admin_password == "" then "(empty)" else "***REDACTED***" end)
+}' "${OPTIONS_FILE}"
 echo ""
 
 # ────────────────────────────────────────────
@@ -337,19 +367,42 @@ fi
 bool_to_pal() { [[ "$1" == "true" ]] && echo "True" || echo "False"; }
 
 echo "▶ Generating PalWorldSettings.ini from add-on configuration..."
+echo "▶ DEBUG: BASE_CAMP_WORKER_MAX_NUM=${BASE_CAMP_WORKER_MAX_NUM}"
 
 cat > "${INI_FILE}" <<EOFINI
 [/Script/Pal.PalGameWorldSettings]
-OptionSettings=(Difficulty=${DIFFICULTY},DayTimeSpeedRate=${DAYTIME_SPEEDRATE},NightTimeSpeedRate=${NIGHTTIME_SPEEDRATE},ExpRate=${EXP_RATE},PalCaptureRate=${PAL_CAPTURE_RATE},PalSpawnNumRate=${PAL_SPAWN_NUM_RATE},PalDamageRateAttack=${PAL_DAMAGE_RATE_ATTACK},PalDamageRateDefense=${PAL_DAMAGE_RATE_DEFENSE},PlayerDamageRateAttack=${PLAYER_DAMAGE_RATE_ATTACK},PlayerDamageRateDefense=${PLAYER_DAMAGE_RATE_DEFENSE},PlayerStomachDecreaseRate=${PLAYER_STOMACH_DECREASE_RATE},PlayerStaminaDecreaseRate=${PLAYER_STAMINA_DECREASE_RATE},PlayerAutoHPRegeneRate=${PLAYER_AUTO_HP_REGEN_RATE},PlayerAutoHpRegeneRateInSleep=${PLAYER_AUTO_HP_REGEN_RATE_IN_SLEEP},PalStomachDecreaseRate=${PAL_STOMACH_DECREASE_RATE},PalStaminaDecreaseRate=${PAL_STAMINA_DECREASE_RATE},PalAutoHPRegeneRate=${PAL_AUTO_HP_REGEN_RATE},PalAutoHpRegeneRateInSleep=${PAL_AUTO_HP_REGEN_RATE_IN_SLEEP},BuildObjectDamageRate=${BUILD_OBJECT_DAMAGE_RATE},BuildObjectDeteriorationDamageRate=${BUILD_OBJECT_DETERIORATION_DAMAGE_RATE},CollectionDropRate=${COLLECTION_DROP_RATE},CollectionObjectHpRate=${COLLECTION_OBJECT_HP_RATE},CollectionObjectRespawnSpeedRate=${COLLECTION_OBJECT_RESPAWN_SPEED_RATE},EnemyDropItemRate=${ENEMY_DROP_ITEM_RATE},DeathPenalty=${DEATH_PENALTY},bEnablePlayerToPlayerDamage=$(bool_to_pal "${ENABLE_PLAYER_TO_PLAYER_DAMAGE}"),bEnableFriendlyFire=$(bool_to_pal "${ENABLE_FRIENDLY_FIRE}"),bEnableInvaderEnemy=$(bool_to_pal "${ENABLE_INVADER_ENEMY}"),bActiveUNKO=False,bEnableAimAssistPad=True,bEnableAimAssistKeyboard=False,DropItemMaxNum=3000,DropItemMaxNum_UNKO=100,BaseCampMaxNum=${BASE_CAMP_MAX_NUM},BaseCampWorkerMaxNum=${BASE_CAMP_WORKER_MAX_NUM},DropItemAliveMaxHours=1.000000,bAutoResetGuildNoOnlinePlayers=False,AutoResetGuildTimeNoOnlinePlayers=72.000000,GuildPlayerMaxNum=20,BaseCampMaxNumInGuild=${BASE_CAMP_MAX_NUM_IN_GUILD},PalEggDefaultHatchingTime=${PAL_EGG_DEFAULT_HATCHING_TIME},WorkSpeedRate=${WORK_SPEED_RATE},AutoSaveSpan=${AUTO_SAVE_SPAN},bIsMultiplay=$(bool_to_pal "${IS_MULTIPLAY}"),bIsPvP=$(bool_to_pal "${IS_PVP}"),bCanPickupOtherGuildDeathPenaltyDrop=False,bEnableNonLoginPenalty=True,bEnableFastTravel=$(bool_to_pal "${ENABLE_FAST_TRAVEL}"),bIsStartLocationSelectByMap=True,bExistPlayerAfterLogout=$(bool_to_pal "${EXIST_PLAYER_AFTER_LOGOUT}"),bEnableDefenseOtherGuildPlayer=$(bool_to_pal "${ENABLE_DEFENSE_OTHER_GUILD_PLAYER}"),bInvisibleOtherGuildBaseCampAreaFX=False,CoopPlayerMaxNum=${COOP_PLAYER_MAX_NUM},ServerPlayerMaxNum=${SERVER_PLAYER_MAX_NUM},ServerName="${SERVER_NAME}",ServerDescription="${SERVER_DESCRIPTION}",AdminPassword="${ADMIN_PASSWORD}",ServerPassword="${SERVER_PASSWORD}",PublicPort=${GAME_PORT},PublicIP="",RCONEnabled=$(bool_to_pal "${RCON_ENABLED}"),RCONPort=${RCON_PORT},Region="",bUseAuth=True,BanListURL="https://api.palworldgame.com/api/banlist.txt",RESTAPIEnabled=False,RESTAPIPort=8212,bShowPlayerList=True,AllowConnectPlatform=Steam,bIsUseBackupSaveData=$(bool_to_pal "${IS_USE_BACKUP_SAVE_DATA}"),LogFormatType=${LOG_FORMAT_TYPE},SupplyDropSpan=${SUPPLY_DROP_SPAN},bEnableCommunityServer=$(bool_to_pal "${COMMUNITY_SERVER}"),ItemWeightRate=${ITEM_WEIGHT_RATE},CrossplayPlatforms=(${CROSSPLAY_PLATFORMS}))
+OptionSettings=(Difficulty=${DIFFICULTY},DayTimeSpeedRate=${DAYTIME_SPEEDRATE},NightTimeSpeedRate=${NIGHTTIME_SPEEDRATE},ExpRate=${EXP_RATE},PalCaptureRate=${PAL_CAPTURE_RATE},PalSpawnNumRate=${PAL_SPAWN_NUM_RATE},PalDamageRateAttack=${PAL_DAMAGE_RATE_ATTACK},PalDamageRateDefense=${PAL_DAMAGE_RATE_DEFENSE},PlayerDamageRateAttack=${PLAYER_DAMAGE_RATE_ATTACK},PlayerDamageRateDefense=${PLAYER_DAMAGE_RATE_DEFENSE},PlayerStomachDecreaceRate=${PLAYER_STOMACH_DECREASE_RATE},PlayerStaminaDecreaceRate=${PLAYER_STAMINA_DECREASE_RATE},PlayerAutoHPRegeneRate=${PLAYER_AUTO_HP_REGEN_RATE},PlayerAutoHpRegeneRateInSleep=${PLAYER_AUTO_HP_REGEN_RATE_IN_SLEEP},PalStomachDecreaceRate=${PAL_STOMACH_DECREASE_RATE},PalStaminaDecreaceRate=${PAL_STAMINA_DECREASE_RATE},PalAutoHPRegeneRate=${PAL_AUTO_HP_REGEN_RATE},PalAutoHpRegeneRateInSleep=${PAL_AUTO_HP_REGEN_RATE_IN_SLEEP},BuildObjectDamageRate=${BUILD_OBJECT_DAMAGE_RATE},BuildObjectDeteriorationDamageRate=${BUILD_OBJECT_DETERIORATION_DAMAGE_RATE},CollectionDropRate=${COLLECTION_DROP_RATE},CollectionObjectHpRate=${COLLECTION_OBJECT_HP_RATE},CollectionObjectRespawnSpeedRate=${COLLECTION_OBJECT_RESPAWN_SPEED_RATE},EnemyDropItemRate=${ENEMY_DROP_ITEM_RATE},DeathPenalty=${DEATH_PENALTY},bEnablePlayerToPlayerDamage=$(bool_to_pal "${ENABLE_PLAYER_TO_PLAYER_DAMAGE}"),bEnableFriendlyFire=$(bool_to_pal "${ENABLE_FRIENDLY_FIRE}"),bEnableInvaderEnemy=$(bool_to_pal "${ENABLE_INVADER_ENEMY}"),bActiveUNKO=False,bEnableAimAssistPad=True,bEnableAimAssistKeyboard=False,DropItemMaxNum=3000,DropItemMaxNum_UNKO=100,BaseCampMaxNum=${BASE_CAMP_MAX_NUM},BaseCampWorkerMaxNum=${BASE_CAMP_WORKER_MAX_NUM},DropItemAliveMaxHours=1.000000,bAutoResetGuildNoOnlinePlayers=False,AutoResetGuildTimeNoOnlinePlayers=72.000000,GuildPlayerMaxNum=20,BaseCampMaxNumInGuild=${BASE_CAMP_MAX_NUM_IN_GUILD},PalEggDefaultHatchingTime=${PAL_EGG_DEFAULT_HATCHING_TIME},WorkSpeedRate=${WORK_SPEED_RATE},AutoSaveSpan=${AUTO_SAVE_SPAN},bIsMultiplay=$(bool_to_pal "${IS_MULTIPLAY}"),bIsPvP=$(bool_to_pal "${IS_PVP}"),bCanPickupOtherGuildDeathPenaltyDrop=False,bEnableNonLoginPenalty=True,bEnableFastTravel=$(bool_to_pal "${ENABLE_FAST_TRAVEL}"),bIsStartLocationSelectByMap=True,bExistPlayerAfterLogout=$(bool_to_pal "${EXIST_PLAYER_AFTER_LOGOUT}"),bEnableDefenseOtherGuildPlayer=$(bool_to_pal "${ENABLE_DEFENSE_OTHER_GUILD_PLAYER}"),bInvisibleOtherGuildBaseCampAreaFX=False,CoopPlayerMaxNum=${COOP_PLAYER_MAX_NUM},ServerPlayerMaxNum=${SERVER_PLAYER_MAX_NUM},ServerName="${SERVER_NAME}",ServerDescription="${SERVER_DESCRIPTION}",AdminPassword="${ADMIN_PASSWORD}",ServerPassword="${SERVER_PASSWORD}",PublicPort=${GAME_PORT},PublicIP="",RCONEnabled=$(bool_to_pal "${RCON_ENABLED}"),RCONPort=${RCON_PORT},Region="",bUseAuth=True,BanListURL="https://api.palworldgame.com/api/banlist.txt",RESTAPIEnabled=False,RESTAPIPort=8212,bShowPlayerList=True,bIsUseBackupSaveData=$(bool_to_pal "${IS_USE_BACKUP_SAVE_DATA}"),LogFormatType=${LOG_FORMAT_TYPE},SupplyDropSpan=${SUPPLY_DROP_SPAN},bEnableCommunityServer=$(bool_to_pal "${COMMUNITY_SERVER}"),ItemWeightRate=${ITEM_WEIGHT_RATE},CrossplayPlatforms=(${CROSSPLAY_PLATFORMS}))
 EOFINI
 
 chown steam:steam "${INI_FILE}" || true
 echo "✅ PalWorldSettings.ini generated"
 
+# Force Palworld to re-read settings from INI on next boot
+# (Palworld caches settings in WorldOption.sav which overrides the INI)
+echo "▶ Removing cached WorldOption.sav so settings from INI are applied..."
+find "${SERVER_DIR}/Pal/Saved/SaveGames" -name "WorldOption.sav" -delete 2>/dev/null || true
+
 # Copy config into game directory
 mkdir -p "${GAME_CFG_DIR}"
 cp -f "${INI_FILE}" "${GAME_CFG_DIR}/PalWorldSettings.ini"
 chown -R steam:steam "${SERVER_DIR}/Pal/Saved/Config" || true
+
+# Verify the INI was written correctly
+echo "▶ DEBUG: Generated INI contents (secrets redacted):"
+echo "  ┌──────────────────────────────────────────────────────────"
+# Pretty-print: one setting per line, redact secrets
+sed 's/,/\n/g' "${GAME_CFG_DIR}/PalWorldSettings.ini" \
+  | sed 's/OptionSettings=(/OptionSettings=(\n/' \
+  | sed 's/)$/\n)/' \
+  | sed -E 's/(AdminPassword=)"[^"]*"/\1"***REDACTED***"/' \
+  | sed -E 's/(ServerPassword=)"[^"]*"/\1"***REDACTED***"/' \
+  | sed -E 's/(discord_webhook_url=)"[^"]*"/\1"***REDACTED***"/i' \
+  | sed -E 's|(https://discord\.com/api/webhooks/[^ "]*)|***REDACTED_WEBHOOK***|g' \
+  | while IFS= read -r line; do
+      echo "  │ ${line}"
+    done
+echo "  └──────────────────────────────────────────────────────────"
+echo ""
 
 # steamclient.so fix (if present)
 if [[ -f "${SERVER_DIR}/linux64/steamclient.so" ]]; then
@@ -376,11 +429,6 @@ start_player_monitor() {
     return 0
   fi
   if [[ "${DISCORD_PLAYER_JOIN_ENABLED}" != "true" && "${DISCORD_PLAYER_LEAVE_ENABLED}" != "true" ]]; then
-# Force Palworld to re-read settings from INI on next boot
-# (Palworld caches settings in WorldOption.sav which overrides the INI)
-echo "▶ Removing cached WorldOption.sav so settings from INI are applied..."
-find "${SERVER_DIR}/Pal/Saved/SaveGames" -name "WorldOption.sav" -delete 2>/dev/null || true
-
     echo "ℹ️  Player join/leave notifications disabled – skipping player monitor"
     return 0
   fi
@@ -392,7 +440,6 @@ find "${SERVER_DIR}/Pal/Saved/SaveGames" -name "WorldOption.sav" -delete 2>/dev/
     sleep 30
 
     local previous_players=""
-    local rcon_cmd="rcon -a 127.0.0.1:${RCON_PORT} -p \"${ADMIN_PASSWORD}\""
 
     while true; do
       # Get current player list via RCON
