@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.1
+
+### Fixed
+- Saving configuration failed with "Missing option 'backup_cron_expression'" for configs saved before 2.0.0 (new options are now optional)
+- `crossplay_platforms` was written to PalWorldSettings.ini without the required parentheses, which could prevent clients from connecting
+
 ## 2.0.0
 
 **Major internal rework — now built on [`thijsvanloef/palworld-server-docker`](https://github.com/thijsvanloef/palworld-server-docker) (rolling `v2` tag).**

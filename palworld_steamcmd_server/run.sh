@@ -57,7 +57,16 @@ map_opt port PORT
 map_opt query_port QUERY_PORT
 map_opt multithreading MULTITHREADING
 map_opt community_server COMMUNITY
-map_opt crossplay_platforms CROSSPLAY_PLATFORMS
+
+# Upstream drops this raw into the INI, which needs a parenthesized list:
+# CrossplayPlatforms=(Steam,Xbox,PS5,Mac)
+CROSSPLAY_VAL="$(opt crossplay_platforms)"
+if [[ -n "${CROSSPLAY_VAL}" ]]; then
+  if [[ "${CROSSPLAY_VAL}" != \(* ]]; then
+    CROSSPLAY_VAL="(${CROSSPLAY_VAL})"
+  fi
+  export CROSSPLAY_PLATFORMS="${CROSSPLAY_VAL}"
+fi
 
 # ── RCON / REST API ──
 map_opt rcon_enabled RCON_ENABLED
