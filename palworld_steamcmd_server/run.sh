@@ -197,12 +197,34 @@ start_tailscale() {
   mkdir -p "${TS_STATE_DIR}"
   mkdir -p /var/run/tailscale
 
-  # Start tailscaled daemon in background (userspace networking as fallback)
+  # Start tailscaled daemon in background.
+  #
+  # Palworld game traffic is UDP (port 8211). Tailscale's userspace networking
+  # (netstack) CANNOT forward inbound UDP to a local server — it only exposes
+  # TCP/HTTP via `tailscale serve`. With userspace mode you get log lines like
+  #   netstack: UDP session between 127.0.0.1:xxxxx and 127.0.0.1:8211 timed out
+  # and players can never connect to the game port.
+  #
+  # So use the real kernel TUN interface (tailscale0) whenever /dev/net/tun is
+  # usable — then the node's tailnet IP is a real IP and inbound UDP:8211 is
+  # delivered straight to the game server. Only fall back to userspace if the
+  # TUN device genuinely can't be opened (in which case UDP will NOT work and we
+  # say so loudly).
+  local ts_tun_arg=""
+  if [[ -c /dev/net/tun ]]; then
+    echo "▶ Tailscale: /dev/net/tun present — using kernel networking (tailscale0); UDP game traffic supported."
+  else
+    echo "⚠️  Tailscale: /dev/net/tun unavailable — falling back to userspace-networking."
+    echo "⚠️  Tailscale: inbound UDP (the Palworld game port) will NOT work in this mode."
+    echo "⚠️  Tailscale: ensure the add-on has NET_ADMIN + SYS_MODULE and /dev/net/tun."
+    ts_tun_arg="--tun=userspace-networking"
+  fi
+
   echo "▶ Tailscale: Starting tailscaled..."
   tailscaled \
     --state="${TS_STATE_DIR}/tailscaled.state" \
     --socket=/var/run/tailscale/tailscaled.sock \
-    --tun=userspace-networking \
+    ${ts_tun_arg} \
     2>&1 &
   echo "▶ Tailscale: tailscaled started with PID $!"
 

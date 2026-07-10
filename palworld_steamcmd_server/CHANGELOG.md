@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.2
+
+### Fixed
+- **Tailscale players could not connect to the game.** The add-on started `tailscaled` with `--tun=userspace-networking`, whose userspace stack (netstack) cannot forward inbound **UDP** to a local server — only TCP/HTTP via `tailscale serve`. Since Palworld's game port (8211) is UDP, connections silently timed out (`netstack: UDP session … 127.0.0.1:8211 … timed out`). The add-on now uses the real kernel TUN interface (`tailscale0`) whenever `/dev/net/tun` is available, so inbound UDP reaches the server; it falls back to userspace only if TUN is unavailable and warns that UDP will not work in that case.
+
 ## 2.0.1
 
 ### Fixed
