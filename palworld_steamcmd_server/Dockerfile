@@ -1,53 +1,27 @@
-# Hass.io Debian base (glibc) + s6 overlay
-FROM ghcr.io/hassio-addons/debian-base:stable
+# Built on thijsvanloef/palworld-server-docker — it handles SteamCMD,
+# server install/updates, RCON, Discord, backups and settings generation.
+# We add Tailscale and translate HA add-on options into its env vars.
+# v2 = upstream's rolling 2.x tag; picks up their fixes on every rebuild.
+FROM thijsvanloef/palworld-server-docker:v2
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 32-bit libs for SteamCMD + tools + Tailscale dependencies
-RUN dpkg --add-architecture i386 \
- && apt-get update \
- && apt-get install -y --no-install-recommends \
-    ca-certificates curl jq gosu gnupg lsb-release iptables iproute2 wget \
-    libc6:i386 libstdc++6:i386 libgcc-s1:i386 \
-    libcurl4:i386 \
-    libncurses6:i386 libtinfo6:i386 \
- && update-ca-certificates \
- && rm -rf /var/lib/apt/lists/*
-
-# Install Tailscale
-RUN curl -fsSL https://pkgs.tailscale.com/stable/debian/bookworm.noarmor.gpg \
+# Tailscale (base image is Debian trixie) + jq for /data/options.json
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates curl jq iptables iproute2 \
+ && curl -fsSL https://pkgs.tailscale.com/stable/debian/trixie.noarmor.gpg \
     -o /usr/share/keyrings/tailscale-archive-keyring.gpg \
- && curl -fsSL https://pkgs.tailscale.com/stable/debian/bookworm.tailscale-keyring.list \
+ && curl -fsSL https://pkgs.tailscale.com/stable/debian/trixie.tailscale-keyring.list \
     -o /etc/apt/sources.list.d/tailscale.list \
  && apt-get update \
  && apt-get install -y --no-install-recommends tailscale \
  && rm -rf /var/lib/apt/lists/*
 
-# Install rcon-cli for RCON commands and player monitoring
-RUN RCON_VERSION="0.10.3" \
- && curl -fsSL "https://github.com/gorcon/rcon-cli/releases/download/v${RCON_VERSION}/rcon-${RCON_VERSION}-amd64_linux.tar.gz" \
-    | tar -xz -C /tmp \
- && mv /tmp/rcon-${RCON_VERSION}-amd64_linux/rcon /usr/local/bin/rcon \
- && chmod +x /usr/local/bin/rcon \
- && rm -rf /tmp/rcon-*
-
-# Create unprivileged steam user
-RUN useradd -m -u 1000 -s /bin/bash steam || true
-
-# Install SteamCMD
-RUN mkdir -p /opt/steamcmd \
- && curl -fsSL https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz \
-    | tar -xz -C /opt/steamcmd \
- && chmod +x /opt/steamcmd/steamcmd.sh \
- && chown -R steam:steam /opt/steamcmd
-
-# Create Tailscale state directory
 RUN mkdir -p /var/lib/tailscale
-
-WORKDIR /data
 
 COPY run.sh /run.sh
 RUN chmod +x /run.sh
 
+ENTRYPOINT []
 CMD ["/run.sh"]

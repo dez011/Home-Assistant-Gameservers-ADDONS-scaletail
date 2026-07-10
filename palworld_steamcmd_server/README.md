@@ -19,7 +19,7 @@
 A Home Assistant OS add-on to run a fully host-based **Palworld Dedicated Server**
 using **SteamCMD** with optional **Tailscale** networking and **Discord webhook** notifications.
 
-> **Drop-in replacement for [`thijsvanloef/palworld-server-docker`](https://github.com/thijsvanloef/palworld-server-docker)** — all the same settings, now configurable directly from the Home Assistant UI.
+> **Built on [`thijsvanloef/palworld-server-docker`](https://github.com/thijsvanloef/palworld-server-docker)** — the most widely used Palworld server image — with all its settings configurable directly from the Home Assistant UI, plus Tailscale networking on top.
 
 ---
 
@@ -27,15 +27,16 @@ using **SteamCMD** with optional **Tailscale** networking and **Discord webhook*
 
 This add-on runs a **Palworld Dedicated Server** directly on **Home Assistant OS**.
 
+Under the hood it uses the `thijsvanloef/palworld-server-docker` image (rolling `v2` tag), which handles SteamCMD install/updates, settings generation, RCON, Discord notifications, and scheduled backups. The add-on maps your Home Assistant UI options to that image's environment variables and adds optional Tailscale networking.
+
 All data is stored entirely on the host under `/share`, including:
 
-- SteamCMD
-- Palworld server files
-- Configuration (auto-generated from UI settings)
-- Savegames
+- Palworld server files, savegames and backups
 - Tailscale state (persistent across restarts)
 
 No additional server, virtual machine, or external host is required.
+
+> **Note:** Palworld game updates come from Steam at add-on startup (`update_on_boot`), not from the Docker image — restarting the add-on after a Palworld patch is enough to update the server.
 
 ---
 
@@ -73,9 +74,7 @@ All server data is stored persistently under:
 
 ```text
 /share/palworld/
-├── server/      ← Palworld server files
-├── config/      ← PalWorldSettings.ini (auto-generated from UI)
-├── steam_home/  ← SteamCMD home
+├── server/      ← Palworld server files, saves and backups
 └── tailscale/   ← Tailscale persistent state
 ```
 
@@ -93,12 +92,13 @@ All settings below are configurable directly from the Home Assistant add-on **Co
 
 ### 🔧 SteamCMD
 
-| Option           | Type   | Default     | Description                                    |
-|------------------|--------|-------------|------------------------------------------------|
-| `app_id`         | int    | `2394010`   | Steam App ID for Palworld Dedicated Server     |
-| `steam_user`     | string | `anonymous` | Steam username for SteamCMD login              |
-| `steam_pass`     | string | *(empty)*   | Steam password (optional, for non-anonymous)   |
-| `update_on_boot` | bool   | `true`      | Automatically update the server on start       |
+| Option                | Type   | Default     | Description                                    |
+|-----------------------|--------|-------------|------------------------------------------------|
+| `app_id`              | int    | `2394010`   | Ignored — the base image always installs Palworld |
+| `steam_user`          | string | `anonymous` | Steam username for SteamCMD login              |
+| `steam_pass`          | string | *(empty)*   | Steam password (optional, for non-anonymous)   |
+| `update_on_boot`      | bool   | `true`      | Automatically update the server on start       |
+| `auto_update_enabled` | bool   | `false`     | Periodically check for and install server updates while running |
 
 ### 🖥️ Server Settings
 
@@ -117,10 +117,20 @@ All settings below are configurable directly from the Home Assistant add-on **Co
 
 ### 🎮 RCON
 
-| Option         | Type | Default | Description                              |
-|----------------|------|---------|------------------------------------------|
-| `rcon_enabled` | bool | `true`  | Enable RCON (needed for Discord join/leave + graceful shutdown) |
-| `rcon_port`    | int  | `25575` | RCON port                                |
+| Option             | Type | Default | Description                              |
+|--------------------|------|---------|------------------------------------------|
+| `rcon_enabled`     | bool | `true`  | Enable RCON (needed for Discord join/leave + graceful shutdown) |
+| `rcon_port`        | int  | `25575` | RCON port                                |
+| `rest_api_enabled` | bool | `false` | Enable the Palworld REST API on port 8212 |
+
+### 💾 Backups
+
+Scheduled world backups, stored under `/share/palworld/server/backups/`.
+
+| Option                   | Type   | Default       | Description                          |
+|--------------------------|--------|---------------|--------------------------------------|
+| `backup_enabled`         | bool   | `true`        | Enable scheduled backups             |
+| `backup_cron_expression` | string | `0 0 * * *`   | Backup schedule (cron format, daily at midnight by default) |
 
 ### ⚡ Gameplay Rates
 
@@ -131,7 +141,7 @@ All settings below are configurable directly from the Home Assistant add-on **Co
 | `exp_rate`           | float | `3.0`   | Experience rate          |
 | `pal_capture_rate`   | float | `1.2`   | Pal capture rate         |
 | `pal_spawn_num_rate` | float | `1.3`   | Pal spawn number rate    |
-| `difficulty`         | string| `Hard`  | Difficulty (None/Normal/Hard) |
+| `difficulty`         | string| `Difficult` | Difficulty (None/Normal/Difficult) |
 
 ### 🧑 Player Settings
 

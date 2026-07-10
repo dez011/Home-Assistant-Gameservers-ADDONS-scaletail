@@ -1,12 +1,13 @@
 name: Palworld Dedicated Server (SteamCMD)
 slug: palworld_steamcmd_server
-description: Palworld Dedicated Server with optional Tailscale networking and Discord webhooks
-version: "1.5.4"
+description: Palworld Dedicated Server (thijsvanloef/palworld-server-docker base) with optional Tailscale networking and Discord webhooks
+version: "2.0.0"
 
 url: https://github.com/dez011/Home-Assistant-Gameservers-ADDONS-scaletail/tree/main/palworld_steamcmd_server
 
 arch:
   - amd64
+  - aarch64
 
 startup: application
 boot: auto
@@ -22,11 +23,13 @@ ports:
   8211/udp: 8211
   27015/udp: 27015
   25575/tcp: 25575
+  8212/tcp: null
 
 ports_description:
   8211/udp: "Game Port (UDP)"
   27015/udp: "Query Port (UDP)"
   25575/tcp: "RCON Port (TCP)"
+  8212/tcp: "REST API (TCP, optional)"
 
 # 🔴 NUR share – Steam + Server + Config liegen auf dem Host
 map:
@@ -51,9 +54,15 @@ options:
   community_server: false
   crossplay_platforms: "Steam,Xbox,PS5,Mac"
 
-  # ── RCON ──
+  # ── RCON / REST API ──
   rcon_enabled: true
   rcon_port: 25575
+  rest_api_enabled: false
+
+  # ── Backups / Auto-Update ──
+  backup_enabled: true
+  backup_cron_expression: "0 0 * * *"
+  auto_update_enabled: false
 
   # ── Gameplay Rates ──
   daytime_speedrate: 0.9
@@ -61,7 +70,7 @@ options:
   exp_rate: 3.0
   pal_capture_rate: 1.2
   pal_spawn_num_rate: 1.3
-  difficulty: "Hard"
+  difficulty: "Difficult"
 
   # ── Player Settings ──
   player_damage_rate_attack: 1.0
@@ -157,9 +166,15 @@ schema:
   community_server: bool
   crossplay_platforms: str?
 
-  # ── RCON ──
+  # ── RCON / REST API ──
   rcon_enabled: bool
   rcon_port: int
+  rest_api_enabled: bool
+
+  # ── Backups / Auto-Update ──
+  backup_enabled: bool
+  backup_cron_expression: str
+  auto_update_enabled: bool
 
   # ── Gameplay Rates ──
   daytime_speedrate: float
