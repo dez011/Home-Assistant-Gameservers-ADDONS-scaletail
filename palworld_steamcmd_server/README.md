@@ -19,7 +19,7 @@
 A Home Assistant OS add-on to run a fully host-based **Palworld Dedicated Server**
 using **SteamCMD** with optional **Tailscale** networking and **Discord webhook** notifications.
 
-> **Drop-in replacement for [`thijsvanloef/palworld-server-docker`](https://github.com/thijsvanloef/palworld-server-docker)** — all the same settings, now configurable directly from the Home Assistant UI.
+> Inspired by [`thijsvanloef/palworld-server-docker`](https://github.com/thijsvanloef/palworld-server-docker) — option names match its environment variables to make migrating easy, but this add-on is an independent implementation.
 
 ---
 
@@ -104,8 +104,8 @@ All settings below are configurable directly from the Home Assistant add-on **Co
 
 | Option                  | Type   | Default                                    | Description                                   |
 |-------------------------|--------|--------------------------------------------|-----------------------------------------------|
-| `server_name`           | string | `pal-world-server-docker by Thijs van Loef`| Server name shown in server browser           |
-| `server_description`    | string | `palworld-server-docker by Thijs van Loef` | Server description                            |
+| `server_name`           | string | `Palworld Server (Home Assistant)`         | Server name shown in server browser           |
+| `server_description`    | string | *(see config)*                             | Server description                            |
 | `server_password`       | string | *(empty)*                                  | Password to join the server                   |
 | `admin_password`        | string | `admin`                                    | Admin/RCON password                           |
 | `server_player_max_num` | int    | `16`                                       | Maximum number of players                     |

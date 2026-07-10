@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.1
+
+- README: replaced the "drop-in replacement" claim with an "inspired by" credit — this add-on is an independent implementation whose option names match thijsvanloef/palworld-server-docker's env vars
+- Neutral default `server_name` / `server_description` (existing configs keep their saved values)
+
 ## 2.1.0
 
 **Rollback to the standalone SteamCMD implementation** (identical to 1.5.4, the last known-good version before the thijsvanloef base-image rework). Version number is higher than 2.0.x only so Home Assistant offers it as an update.

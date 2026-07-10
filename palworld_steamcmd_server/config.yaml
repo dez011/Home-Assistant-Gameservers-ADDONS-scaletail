@@ -1,7 +1,7 @@
 name: Palworld Dedicated Server (SteamCMD)
 slug: palworld_steamcmd_server
 description: Palworld Dedicated Server with optional Tailscale networking and Discord webhooks
-version: "2.1.0"
+version: "2.1.1"
 
 url: https://github.com/dez011/Home-Assistant-Gameservers-ADDONS-scaletail/tree/main/palworld_steamcmd_server
 
@@ -40,8 +40,8 @@ options:
   update_on_boot: true
 
   # ── Server Settings ──
-  server_name: "pal-world-server-docker by Thijs van Loef"
-  server_description: "palworld-server-docker by Thijs van Loef"
+  server_name: "Palworld Server (Home Assistant)"
+  server_description: "Palworld dedicated server running as a Home Assistant add-on"
   server_password: ""
   admin_password: "admin"
   server_player_max_num: 16
