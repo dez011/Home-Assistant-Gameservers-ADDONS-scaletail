@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.0
+
+**Rollback to the standalone SteamCMD implementation** (identical to 1.5.4, the last known-good version before the thijsvanloef base-image rework). Version number is higher than 2.0.x only so Home Assistant offers it as an update.
+
+- Palworld game updates still work the same way: SteamCMD pulls the latest build from Steam on every start (`update_on_boot`)
+- Your world, players and settings are untouched — data stays at `/share/palworld/`
+
 ## 2.0.2
 
 ### Fixed
